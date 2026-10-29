@@ -1,6 +1,9 @@
 name: Refresh Google public certificates
 on:
   workflow_dispatch:
+  push:
+    branches: [main]
+    paths: [google-certs.json]
   schedule:
     - cron: '7,17,27,37,47,57 * * * *'
 permissions:
@@ -20,8 +23,10 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
       - name: Fetch from the fixed Google HTTPS endpoint
+        if: github.event_name != 'push'
         run: python3 publish.py
       - name: Publish public certificates and freshness metadata
+        if: github.event_name != 'push'
         run: |
           git config user.name 'briefpebble-certificate-publisher'
           git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
