@@ -1,4 +1,4 @@
-# BriefPebble public certificate relay
+# gistly public certificate relay
 
 Published endpoint: https://yangdongmingisok.github.io/briefpebble-google-public-keys/google-certs.json
 
