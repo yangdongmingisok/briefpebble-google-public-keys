@@ -1,18 +1,24 @@
 # gistly public certificate relay
 
-Published endpoint: https://yangdongmingisok.github.io/briefpebble-google-public-keys/google-certs.json
+A relay for Google's already-public OAuth signing certificates. It never receives
+user ID tokens, profiles, passwords, cookies, client secrets or Google private keys.
+The only certificate upstream is https://www.googleapis.com/oauth2/v1/certs with
+normal TLS certificate verification.
 
-A small public-data relay for Google's already-public OAuth signing certificates.
-It never receives ID tokens, account profiles, cookies, client secrets or private keys.
-The only upstream is https://www.googleapis.com/oauth2/v1/certs with normal TLS verification.
+A dedicated, unprivileged service on the owner's VPS fetches and publishes fresh
+snapshots every five minutes using a systemd timer enabled at boot. Its SSH deploy
+key is limited to this repository. Snapshot pushes trigger GitHub Pages publication;
+this route does not depend on GitHub's scheduled workflow events. The existing
+manual/scheduled workflow is retained as a secondary recovery path.
 
-The publisher runs every ten minutes through GitHub Actions. Each snapshot expires
-within one hour and no later than Google's advertised remaining cache lifetime.
-The application rejects stale or malformed snapshots and still verifies Google token
-signatures, issuer, audience, expiry, verified email and its session-bound nonce.
-Password sign-in remains available when this relay cannot refresh.
+Each snapshot expires within one hour and no later than Google's remaining cache
+lifetime or the certificates' validity. The application rejects stale/malformed
+snapshots and verifies Google token signatures, issuer, audience, expiry, verified
+email and the session-bound nonce. Failed refreshes never enable unsigned login.
 
-Scheduled runs may be delayed or disabled by GitHub. The application must fail closed
-when a snapshot expires. This repository and its maintainers are a trusted part of
-the application's authentication infrastructure; restrict write access accordingly.
-No application code, user records or credentials are included here.
+Published endpoint:
+https://yangdongmingisok.github.io/briefpebble-google-public-keys/google-certs.json
+
+Repository write access and the dedicated publisher key are authentication
+infrastructure: restrict maintainers and protect the server and GitHub account.
+No application user records or credentials are published here.
