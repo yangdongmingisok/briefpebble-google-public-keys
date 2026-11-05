@@ -34,14 +34,43 @@ jobs:
           mkdir -p public
           cp google-certs.json public/google-certs.json
           printf '%s\n' 'gistly public Google signing certificate relay. No user data is processed.' > public/index.html
-      - uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+      # A failed upload may leave a reserved artifact name behind. Each retry
+      # uses its own name; deployment selects only an upload that succeeded.
+      - name: Upload public certificates
+        id: upload
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        continue-on-error: true
         with:
+          name: github-pages-attempt-1
+          path: public
+      - name: Wait before retrying upload
+        if: steps.upload.outcome == 'failure'
+        run: sleep 10
+      - name: Retry public certificate upload
+        if: steps.upload.outcome == 'failure'
+        id: upload_retry
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        continue-on-error: true
+        with:
+          name: github-pages-attempt-2
+          path: public
+      - name: Wait before the final upload attempt
+        if: steps.upload_retry.outcome == 'failure'
+        run: sleep 20
+      - name: Final public certificate upload attempt
+        if: steps.upload_retry.outcome == 'failure'
+        id: upload_final
+        uses: actions/upload-pages-artifact@7b1f4a764d45c48632c6b24a0339c27f5614fb0b
+        with:
+          name: github-pages-attempt-3
           path: public
       # Uploaded artifacts can briefly be absent from GitHub's metadata service.
       # Retry deployment with the same artifact; never report success if all attempts fail.
       - name: Deploy public certificates
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
         id: deployment
+        with:
+          artifact_name: ${{ steps.upload.outcome == 'success' && 'github-pages-attempt-1' || steps.upload_retry.outcome == 'success' && 'github-pages-attempt-2' || 'github-pages-attempt-3' }}
         continue-on-error: true
       - name: Wait before retrying deployment
         if: steps.deployment.outcome == 'failure'
@@ -50,6 +79,8 @@ jobs:
         if: steps.deployment.outcome == 'failure'
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
         id: deployment_retry
+        with:
+          artifact_name: ${{ steps.upload.outcome == 'success' && 'github-pages-attempt-1' || steps.upload_retry.outcome == 'success' && 'github-pages-attempt-2' || 'github-pages-attempt-3' }}
         continue-on-error: true
       - name: Wait before the final deployment attempt
         if: steps.deployment_retry.outcome == 'failure'
@@ -58,3 +89,5 @@ jobs:
         if: steps.deployment_retry.outcome == 'failure'
         uses: actions/deploy-pages@d6db90164ac5ed86f2b6aed7e0febac5b3c0c03e
         id: deployment_final
+        with:
+          artifact_name: ${{ steps.upload.outcome == 'success' && 'github-pages-attempt-1' || steps.upload_retry.outcome == 'success' && 'github-pages-attempt-2' || 'github-pages-attempt-3' }}
