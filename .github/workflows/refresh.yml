@@ -3,9 +3,11 @@ on:
   workflow_dispatch:
   push:
     branches: [main]
-    paths: [google-certs.json]
+    # Certificate commits continue every five minutes, without starting a Pages build.
+    # Pages is a backup; the primary reader uses the repository API and local cache.
+    paths: ['.github/workflows/refresh.yml', 'publish.py', 'validate_snapshot.py']
   schedule:
-    - cron: '7,17,27,37,47,57 * * * *'
+    - cron: '3,18,33,48 * * * *'
 permissions:
   contents: read
   pages: write
@@ -23,12 +25,20 @@ jobs:
     steps:
       - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
         with:
+          ref: main
           persist-credentials: false
       - name: Fetch from the fixed Google HTTPS endpoint
         if: github.event_name != 'push'
-        run: python3 publish.py
+        run: |
+          for attempt in 1 2 3; do
+            if python3 publish.py; then exit 0; fi
+            if [ "$attempt" -eq 3 ]; then exit 1; fi
+            sleep $((attempt * 5))
+          done
       # VPS is the repository writer. Fallback runs deploy their fresh snapshot
       # directly, avoiding non-fast-forward races with the five-minute publisher.
+      - name: Validate public snapshot before publishing
+        run: python3 validate_snapshot.py google-certs.json
       - name: Prepare public certificate files
         run: |
           mkdir -p public
